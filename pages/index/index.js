@@ -8,6 +8,8 @@ const plugin = requirePlugin("WechatSI")
 // 获取**全局唯一**的语音识别管理器**recordRecoManager**
 const manager = plugin.getRecordRecognitionManager()
 
+const innerAudioContext = wx.createInnerAudioContext();
+
 // 是否有文件正在播放
 let isPlayingVoice = false;
 // 正在播放的文件名
@@ -66,6 +68,7 @@ Page({
    * 生命周期函数--监听页面加载
    */
   onLoad: function (options) {
+    this.getRecordAuth();
     this.initHistory();
     this.initRecord();
   },
@@ -131,7 +134,7 @@ Page({
 
       return v;
     })
-    console.log("%%%%%%%");
+    console.log("读取到个本地的缓存音频文件");
     console.log(historyRecords)
     this.setData({ historyRecords });
   },
@@ -172,14 +175,22 @@ Page({
 
       console.log("-----------------")
       console.log(text)
-      let lastId = this.data.lastId + 1
+
+      this.setData({
+        // currentTranslate: currentData,
+        recordStatus: 1,
+        // lastId: lastId,
+      })
+
+      this.loginCoolead(text)
+      // let lastId = this.data.lastId + 1
 
       wx.saveFile({
         tempFilePath: filePath,
         success: fileInfo => {
           const { savedFilePath } = fileInfo;
           const voiceKey = `historyRecords-${Date.now()}`
-
+          
           // 生成笔记并保存再 storage
           const historyRecord = {
             key: voiceKey,
@@ -202,20 +213,12 @@ Page({
           util.showModel('错误', '保存语音失败');
         }
       });
-    
       // let currentData = Object.assign({}, this.data.currentTranslate, {
       //   text: res.result,
       //   translateText: '正在翻译中',
       //   id: lastId,
       //   voicePath: res.tempFilePath
       // })
-
-      // this.setData({
-      //   currentTranslate: currentData,
-      //   recordStatus: 1,
-      //   lastId: lastId,
-      // })
-      // console.log("-----------------")
       // console.log(currentData)
       // this.translateText(currentData, this.data.dialogList.length)
     }
@@ -256,6 +259,76 @@ Page({
     })
   },
 
+  playVoice(e) {
+    // const path = e.currentTarget.dataset.path;
+    const key = e.currentTarget.dataset.voicekey;
+    const idx = e.currentTarget.dataset.voiceidx;
+    const historyRecords = this.data.historyRecords;
+    const path = historyRecords[idx].path
+
+    /**
+     * 如果有文件正在播放
+     * 则停止正在播放的文件
+     */
+    if (isPlayingVoice) {
+      innerAudioContext.stop();
+      isPlayingVoice = false;
+      historyRecords[playingVoiceIndex].playing = false;
+      this.setData({ historyRecords });
+    }
+
+    /**
+     * 如果正在播放的文件就是点击的这个文件
+     * 则视为停止不再播放
+     */
+    if (playingVoiceKey === key) {
+      playingVoiceKey = '';
+      return;
+    }
+
+    isPlayingVoice = true;
+    playingVoiceKey = key;
+    playingVoiceIndex = idx;
+
+    historyRecords[idx].playing = true;
+    this.setData({ historyRecords });
+
+    console.log('play voice', key);
+    innerAudioContext.src = path;
+    innerAudioContext.play();
+
+    // 播放时间到了置回未播放
+    setTimeout(() => {
+      historyRecords[idx].playing = false;
+      this.setData({ historyRecords });
+    }, historyRecords[idx].duration * 1000);
+  },
+
+  showVoiceActions(e) {
+    const voiceKey = e.currentTarget.dataset.voicekey;
+    const voice = this.data.historyRecords.filter(v => v.key === voiceKey)[0];
+
+    wx.showActionSheet({
+      itemList: ['删除语音'],
+      success: res => {
+        if (res.tapIndex === 0) {
+          if (!voice.isRec || !voice.word) {
+            // this.recognizeVoice(voice.key, voice.path);
+            // this.playVoice()
+            this.deleteVoice(voiceKey);
+          }
+        } else if (res.tapIndex === 1) {
+          this.deleteVoice(voiceKey);
+        }
+      }
+    });
+  },
+
+  deleteVoice(key) {
+    const historyRecords = this.data.historyRecords.filter(v => v.key !== key);
+    this.saveToStorage(historyRecords);
+    this.setData({ historyRecords });
+  },
 
   /**
    * 翻译
@@ -347,6 +420,57 @@ Page({
     });
   },
 
+  // 权限询问
+  getRecordAuth: function () {
+    wx.getSetting({
+      success(res) {
+        console.log("succ")
+        console.log(res)
+        if (!res.authSetting['scope.record']) {
+          wx.authorize({
+            scope: 'scope.record',
+            success() {
+              // 用户已经同意小程序使用录音功能，后续调用 wx.startRecord 接口不会弹窗询问
+              console.log("succ auth")
+            }, fail() {
+              console.log("fail auth")
+            }
+          })
+        } else {
+          console.log("record has been authed")
+        }
+      }, fail(res) {
+        console.log("fail")
+        console.log(res)
+      }
+    })
+  },
+
+  loginCoolead(text) {
+    if(text.indexOf("登录") != -1) {
+      wx.request({
+      url: 'https://ed.coolead.com/api/auth/tokenForApp',
+      header: {
+        'Content-Type': 'application/json'
+      },
+      method:"POST",
+      data : {
+        "grantType":"password",
+        "userName":"duzhen",
+        "password":"000000"
+      },
+      success(res) {
+        console.log(res)
+        util.showTips("登录成功")
+      },
+      fail(err) {
+        console.log(err)
+        util.showToast("登录失败")
+      }
+    })
+    }
+  },
+
   /**
    * 生命周期函数--监听页面初次渲染完成
    */
@@ -365,6 +489,8 @@ Page({
    * 生命周期函数--监听页面隐藏
    */
   onHide: function () {
+
+    console.log("onHide")
     try {
       wx.removeStorageSync('historyRecords')
     } catch (e) {
@@ -377,7 +503,13 @@ Page({
    * 生命周期函数--监听页面卸载
    */
   onUnload: function () {
-    
+    console.log("onUnload")
+    // try {
+    //   wx.removeStorageSync('historyRecords')
+    // } catch (e) {
+    //   // Do something when catch error
+    //   console.log("清除缓存失败:")
+    // }
   },
 
   /**

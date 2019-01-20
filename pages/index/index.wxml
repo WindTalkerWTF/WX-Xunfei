@@ -35,7 +35,7 @@
                 data-voicekey="{{ historyRecord.key }}"
             >
                 <image src="../../images/voice-item.png"></image>
-                <text>{{ '时长:' + historyRecord.duration + 's ' + historyRecord.contentText }}</text>
+                <text>{{ historyRecord.contentText +  '   (时长:' + historyRecord.duration + 's)' }}</text>
             </view>
             <view class="note-item-word" wx:if="{{ historyRecord.isRec }}">
                 <text>{{ historyRecord.word ? historyRecord.word : '未识别出结果，长按可以重新识别' }}</text>
