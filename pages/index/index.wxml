@@ -1,0 +1,53 @@
+<!--index.wxml-->
+<!-- <view class="container">
+  <view class="userinfo">
+    <button wx:if="{{!hasUserInfo && canIUse}}" open-type="getUserInfo" bindgetuserinfo="getUserInfo"> 获取头像昵称 </button>
+    <block wx:else>
+      <image bindtap="bindViewTap" class="userinfo-avatar" src="{{userInfo.avatarUrl}}" mode="cover"></image>
+      <text class="userinfo-nickname">{{userInfo.nickName}}</text>
+    </block>
+  </view>
+  <view class="usermotto">
+    <text class="user-motto">{{motto}}</text>
+  </view>
+</view> -->
+
+
+<view>
+
+  <!-- 语音列表 -->
+    <view class="note-list">
+        <view
+            class="{{ historyRecord.playing ? 'note-item voice-playing' : 'note-item' }}"
+            wx:for="{{ historyRecords }}"
+            wx:for-item="historyRecord"
+            wx:for-index="idx"
+            wx:key="{{ historyRecord.key }}"
+            data-voiceidx="{{ idx }}"
+            data-voicekey="{{ historyRecord.key }}"
+            bindtap="playVoice"
+            bindlongpress="showVoiceActions"
+        >
+            <view
+                class="note-item-voice"
+                data-voiceidx="{{ idx }}"
+                data-voicepath="{{ historyRecord.path }}"
+                data-voicekey="{{ historyRecord.key }}"
+            >
+                <image src="../../images/voice-item.png"></image>
+                <text>{{ '时长:' + historyRecord.duration + 's ' + historyRecord.contentText }}</text>
+            </view>
+            <view class="note-item-word" wx:if="{{ historyRecord.isRec }}">
+                <text>{{ historyRecord.word ? historyRecord.word : '未识别出结果，长按可以重新识别' }}</text>
+            </view>
+        </view>
+    </view>
+  <!---引导页,暂时不需要--->
+  <!-- <image src="../../images/splash.png" class="note-splash" wx:if="{{ notes.length === 0 }}"></image>
+    <view class="note-gradient"></view> -->
+
+    <view class="note-btn" bindtouchstart="streamRecord" bindtouchend="streamRecordEnd">
+        <image src="../../images/voice.png" width="64rpx" width="64rpx"></image>
+    </view>
+
+</view>
